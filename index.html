@@ -441,6 +441,7 @@
     let score = 0;
     let coins = parseInt(localStorage.getItem('flappyCoins')) || 0;
     let highScore = parseInt(localStorage.getItem('flappyHighScore')) || 0;
+    let reviveCount = parseInt(localStorage.getItem('flappyReviveCount')) || 0;
     let gameSpeed = 2;
     let jumpPressed = false;
     
@@ -2475,6 +2476,8 @@
       bossLevel = 0;
       bossJumpTimer = 0;
       activeDurationPowerups = {};
+      reviveCount = 0;
+      localStorage.setItem('flappyReviveCount', 0);
       bird = { x: 80, y: 300, width: 40, height: 35, gravity: 0.4, lift: -9, velocity: 0, rotation: 0, hasDoubleJump: false, hasShield: false, ghostMode: false, fireTrail: false };
       pipes = [];
       coinItems = [];
@@ -2498,7 +2501,37 @@
       document.getElementById('finalScore').textContent = score;
       document.getElementById('finalCoins').textContent = coins;
       document.getElementById('highScore').textContent = highScore;
+      
+      // Update revive button cost
+      const reviveCost = 5 + (reviveCount * 10);
+      document.getElementById('reviveBtn').textContent = '💚 REVIVE (' + reviveCost + ' 💰)';
+      
       document.getElementById('gameOverScreen').classList.add('active');
+    }
+    
+    function reviveGame() {
+      const reviveCost = 5 + (reviveCount * 10);
+      if (coins >= reviveCost) {
+        coins -= reviveCost;
+        reviveCount++;
+        localStorage.setItem('flappyReviveCount', reviveCount);
+        saveCoins();
+        
+        // Reset bird position and continue game
+        bird.y = 300;
+        bird.velocity = 0;
+        bird.hasShield = true;
+        
+        // Clear dangerous objects
+        pipes = [];
+        powerups = [];
+        
+        gameState = 'playing';
+        document.getElementById('gameOverScreen').classList.remove('active');
+        showNotify('💚 Revived! +1 Shield');
+      } else {
+        showNotify('Not enough coins!');
+      }
     }
     
     function hideAllScreens() {
