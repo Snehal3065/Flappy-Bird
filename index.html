@@ -426,7 +426,7 @@
       { name: 'Forest', sky: ['#A5D6A7', '#C8E6C9', '#81C784'], ground: '#5D4037', grass: '#388E3C', pipe: '#8D6E63', icon: '🌲' }
     ];
     
-    const powerupTypes = ['shield', 'double'];
+    const powerupTypes = ['shield', 'double', 'scoreBonus', 'coinMagnet', 'autoJump', 'miniBird', 'pipeFreeze', 'ghostMode', 'speedBoost', 'extraLife', 'coinRain', 'fireTrail'];
     
     // ==================== GAME STATE ====================
     const canvas = document.getElementById('gameCanvas');
@@ -919,15 +919,53 @@
       });
     }
     
+    function getPowerupIcon(type) {
+      const icons = {
+        'shield': '🛡️',
+        'double': '🦅',
+        'scoreBonus': '⭐',
+        'coinMagnet': '🧲',
+        'autoJump': '⚡',
+        'miniBird': '🐦',
+        'pipeFreeze': '❄️',
+        'ghostMode': '👻',
+        'speedBoost': '🚀',
+        'extraLife': '❤️',
+        'coinRain': '💰',
+        'fireTrail': '🔥'
+      };
+      return icons[type] || '❓';
+    }
+    
+    function getPowerupColor(type) {
+      const colors = {
+        'shield': '#4ECDC4',
+        'double': '#F39C12',
+        'scoreBonus': '#FFD700',
+        'coinMagnet': '#E91E63',
+        'autoJump': '#FFEB3B',
+        'miniBird': '#8BC34A',
+        'pipeFreeze': '#03A9F4',
+        'ghostMode': '#9C27B0',
+        'speedBoost': '#FF5722',
+        'extraLife': '#F44336',
+        'coinRain': '#FFC107',
+        'fireTrail': '#FF9800'
+      };
+      return colors[type] || '#F39C12';
+    }
+    
     function drawPowerups() {
       powerups.forEach(p => {
         if (p.collected) return;
+        const color = getPowerupColor(p.type);
+        const icon = getPowerupIcon(p.type);
         ctx.save(); ctx.translate(p.x, p.y);
-        ctx.shadowColor = p.type==='shield'?'#4ECDC4':p.type==='slowmo'?'#9B59B6':'#F39C12'; ctx.shadowBlur=15;
-        ctx.fillStyle = p.type==='shield'?'#4ECDC4':p.type==='slowmo'?'#9B59B6':'#F39C12';
+        ctx.shadowColor = color; ctx.shadowBlur=15;
+        ctx.fillStyle = color;
         ctx.beginPath(); ctx.roundRect(0,0,35,35,8); ctx.fill();
         ctx.shadowBlur=0; ctx.fillStyle='#fff'; ctx.font='20px Arial'; ctx.textAlign='center'; ctx.textBaseline='middle';
-        ctx.fillText(p.type==='shield'?'🛡️':p.type==='slowmo'?'⚡':'🦅', 17, 17); ctx.restore();
+        ctx.fillText(icon, 17, 17); ctx.restore();
       });
     }
     
