@@ -1979,8 +1979,8 @@
           if (bottomH > 80) {
             pipes.push({ x: 400, top: th, bottom: bottomH, scored: false, gap: currentGap });
             if (Math.random() > 0.5) coinItems.push({ x: 400 + pipeWidth / 2 - 15, y: th + currentGap / 2 - 15, collected: false });
-            if (Math.random() > 0.8) {
-              const t = powerupTypes[Math.floor(Math.random() * powerupTypes.length)];
+            if (Math.random() > 0.8 && equippedPowerups.length > 0) {
+              const t = equippedPowerups[Math.floor(Math.random() * equippedPowerups.length)];
               powerups.push({ x: 400 + pipeWidth / 2 - 17, y: th + currentGap / 2 - 17, type: t, collected: false });
             }
           }
