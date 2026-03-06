@@ -955,6 +955,19 @@
       return colors[type] || '#F39C12';
     }
     
+    function getPowerupDuration(type) {
+      const durations = {
+        'coinMagnet': 10,
+        'autoJump': 5,
+        'miniBird': 8,
+        'pipeFreeze': 3,
+        'ghostMode': 5,
+        'speedBoost': 10,
+        'fireTrail': 8
+      };
+      return durations[type] || 5;
+    }
+    
     function drawPowerups() {
       powerups.forEach(p => {
         if (p.collected) return;
@@ -1506,8 +1519,33 @@
       
       let px = 310;
       if (bird.hasShield) { ctx.fillText('🛡️', px, 40); px += 35; }
-      if (bird.slowMotion) { ctx.fillText('⚡', px, 40); px += 35; }
-      if (bird.hasDoubleJump) { ctx.fillText('🦅', px, 40); }
+      if (bird.hasDoubleJump) { ctx.fillText('🦅', px, 40); px += 35; }
+      
+      // Duration powerup timers
+      let timerY = 70;
+      for (let type in activeDurationPowerups) {
+        if (activeDurationPowerups[type] > 0) {
+          const totalDuration = getPowerupDuration(type);
+          const remaining = Math.ceil(activeDurationPowerups[type] / 60);
+          const percent = activeDurationPowerups[type] / (totalDuration * 60);
+          
+          // Background bar
+          ctx.fillStyle = 'rgba(0,0,0,0.5)';
+          ctx.fillRect(10, timerY, 80, 12);
+          
+          // Colored bar based on powerup type
+          const color = getPowerupColor(type);
+          ctx.fillStyle = color;
+          ctx.fillRect(11, timerY + 1, percent * 78, 10);
+          
+          // Icon and time
+          ctx.font = '12px Arial';
+          ctx.fillStyle = '#fff';
+          ctx.fillText(getPowerupIcon(type) + ' ' + remaining + 's', 12, timerY + 10);
+          
+          timerY += 18;
+        }
+      }
       
       if (bossActive && boss && boss.hp > 0) {
         ctx.fillStyle = 'rgba(0,0,0,0.5)';
@@ -1994,30 +2032,31 @@
       }
       
       // Update pipes
-      pipes.forEach((p, i) => {
+      for (let i = pipes.length - 1; i >= 0; i--) {
+        let p = pipes[i];
         p.x -= speed;
         if (!bird.ghostMode && bird.x < p.x + pipeWidth && bird.x + bird.width > p.x && (bird.y < p.top || bird.y + bird.height > 600 - p.bottom)) {
           if (bird.fireTrail) {
             spawnParticles(p.x + pipeWidth / 2, p.top + 30, '#FF6B6B', 20);
             pipes.splice(i, 1);
             score += 2;
-            return;
+            continue;
           }
           if (bird.hasShield) {
             bird.hasShield = false;
             spawnParticles(bird.x + bird.width / 2, bird.y + bird.height / 2, '#4ECDC4', 15);
             showNotify('Shield!');
             pipes.splice(i, 1);
-            return;
+            continue;
           } else {
             playDeath();
             gameOver();
-            return;
+            continue;
           }
         }
         if (p.x + pipeWidth < bird.x && !p.scored) { score++; p.scored = true; playScore(); if (score % 5 === 0) gameSpeed = Math.min(4, gameSpeed + 0.2); }
         if (p.x + pipeWidth < 0) pipes.splice(i, 1);
-      });
+      }
       
       // Coins and powerups
       coinItems = coinItems.filter(c => {
@@ -2668,7 +2707,7 @@
         drawProjectiles();
         drawPlayerProjectiles();
         if (gameState === 'playing') update();
-        drawCharacter(ctx, bird.x + bird.width / 2, bird.y + bird.height / 2, 35, selectedChar, bird.rotation);
+        drawCharacter(ctx, bird.x + bird.width / 2, bird.y + bird.height / 2, bird.width, selectedChar, bird.rotation);
         drawParticles();
         drawHUD();
       } else if (gameState === 'menu') {
