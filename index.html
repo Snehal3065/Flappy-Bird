@@ -426,7 +426,7 @@
       { name: 'Forest', sky: ['#A5D6A7', '#C8E6C9', '#81C784'], ground: '#5D4037', grass: '#388E3C', pipe: '#8D6E63', icon: '🌲' }
     ];
     
-    const powerupTypes = ['shield', 'double', 'scoreBonus', 'coinMagnet', 'autoJump', 'miniBird', 'pipeFreeze', 'ghostMode', 'speedBoost', 'extraLife', 'coinRain', 'fireTrail'];
+    const powerupTypes = ['shield', 'double', 'scoreBonus', 'coinMagnet', 'autoJump', 'miniBird', 'ghostMode', 'speedBoost', 'extraLife', 'coinRain', 'fireTrail', 'teleport', 'coinDrone'];
     
     // ==================== GAME STATE ====================
     const canvas = document.getElementById('gameCanvas');
@@ -447,7 +447,7 @@
     
     let selectedMap = 0;
     let selectedChar = 0;
-    let bird = { x: 80, y: 300, width: 40, height: 35, gravity: 0.4, lift: -9, velocity: 0, rotation: 0, hasDoubleJump: false, hasShield: false, slowMotion: false, slowMotionTimer: 0 };
+    let bird = { x: 80, y: 300, width: 40, height: 35, gravity: 0.4, lift: -9, velocity: 0, rotation: 0, hasDoubleJump: false, hasShield: false, extraLives: 0, ghostMode: false, fireTrail: false, coinDrone: false };
     let pipes = [];
     let coinItems = [];
     let powerups = [];
@@ -933,7 +933,9 @@
         'speedBoost': '🚀',
         'extraLife': '❤️',
         'coinRain': '💰',
-        'fireTrail': '🔥'
+        'fireTrail': '🔥',
+        'teleport': '📍',
+        'coinDrone': '🤖'
       };
       return icons[type] || '❓';
     }
@@ -951,7 +953,9 @@
         'speedBoost': '#FF5722',
         'extraLife': '#F44336',
         'coinRain': '#FFC107',
-        'fireTrail': '#FF9800'
+        'fireTrail': '#FF9800',
+        'teleport': '#00BCD4',
+        'coinDrone': '#607D8B'
       };
       return colors[type] || '#F39C12';
     }
@@ -964,9 +968,10 @@
         'pipeFreeze': 3,
         'ghostMode': 5,
         'speedBoost': 10,
-        'fireTrail': 8
+        'fireTrail': 8,
+        'coinDrone': 10
       };
-      return durations[type] || 5;
+      return durations[type] || 0;
     }
     
     function drawPowerups() {
@@ -1520,6 +1525,10 @@
       
       let px = 310;
       if (bird.hasShield) { ctx.fillText('🛡️', px, 40); px += 35; }
+      if (bird.extraLives > 0) { 
+        ctx.fillText('❤️'.repeat(bird.extraLives), px, 40); 
+        px += 35 * bird.extraLives; 
+      }
       if (bird.hasDoubleJump) { ctx.fillText('🦅', px, 40); px += 35; }
       
       // Duration powerup timers
@@ -1974,16 +1983,16 @@
         spawnParticles(bird.x + bird.width / 2, bird.y + bird.height, '#F39C12', 5);
       }
       
-      // Coin magnet powerup
+      // Coin magnet powerup - attracts coins from 5 pipes ahead
       if (activeDurationPowerups['coinMagnet']) {
         coinItems.forEach(c => {
-          if (!c.collected) {
+          if (!c.collected && c.x > bird.x - 100) { // Only attract coins ahead or slightly behind
             const dx = bird.x - c.x;
             const dy = bird.y - c.y;
             const dist = Math.sqrt(dx * dx + dy * dy);
-            if (dist < 150) {
-              c.x += dx * 0.05;
-              c.y += dy * 0.05;
+            if (dist < 900) { // 5 pipes ahead (~900px)
+              c.x += dx * 0.08;
+              c.y += dy * 0.08;
             }
           }
         });
@@ -1991,7 +2000,13 @@
       
       if (bird.y < 20) { bird.y = 20; bird.velocity = 0; }
       if (bird.y + bird.height > 550) {
-        if (bird.hasShield) {
+        if (bird.extraLives > 0) {
+          bird.extraLives--;
+          bird.y = 550 - bird.height;
+          bird.velocity = -8;
+          spawnParticles(bird.x + bird.width / 2, 550, '#F44336', 15);
+          showNotify('Life Lost! ' + '❤️'.repeat(bird.extraLives));
+        } else if (bird.hasShield) {
           bird.hasShield = false;
           bird.y = 550 - bird.height;
           bird.velocity = -8;
@@ -2043,6 +2058,13 @@
             score += 2;
             continue;
           }
+          if (bird.extraLives > 0) {
+            bird.extraLives--;
+            spawnParticles(bird.x + bird.width / 2, bird.y + bird.height / 2, '#F44336', 15);
+            showNotify('Life Lost! ' + '❤️'.repeat(bird.extraLives));
+            pipes.splice(i, 1);
+            continue;
+          }
           if (bird.hasShield) {
             bird.hasShield = false;
             spawnParticles(bird.x + bird.width / 2, bird.y + bird.height / 2, '#4ECDC4', 15);
@@ -2060,6 +2082,21 @@
       }
       
       // Coins and powerups
+      // Coin Drone - auto collect nearby coins
+      if (bird.coinDrone) {
+        coinItems.forEach(c => {
+          if (!c.collected) {
+            const dx = bird.x - c.x;
+            const dy = bird.y - c.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist < 200) {
+              c.x += dx * 0.15;
+              c.y += dy * 0.15;
+            }
+          }
+        });
+      }
+      
       coinItems = coinItems.filter(c => {
         c.x -= speed;
         if (!c.collected && bird.x < c.x + 30 && bird.x + bird.width > c.x && bird.y < c.y + 30 && bird.y + bird.height > c.y) {
@@ -2132,7 +2169,12 @@
         projectiles.forEach((p, i) => {
           p.x += p.vx;
           if (bird.x < p.x + 16 && bird.x + bird.width > p.x - 8 && bird.y < p.y + 16 && bird.y + bird.height > p.y - 8) {
-            if (bird.hasShield) {
+            if (bird.extraLives > 0) {
+              bird.extraLives--;
+              spawnParticles(bird.x + bird.width / 2, bird.y + bird.height / 2, '#F44336', 15);
+              showNotify('Life Lost! ' + '❤️'.repeat(bird.extraLives));
+              projectiles.splice(i, 1);
+            } else if (bird.hasShield) {
               bird.hasShield = false;
               spawnParticles(bird.x + bird.width / 2, bird.y + bird.height / 2, '#4ECDC4', 15);
               showNotify('Blocked!');
@@ -2281,14 +2323,32 @@
       else if (storeItem) {
         if (storeItem.type === 'instant') {
           if (t === 'scoreBonus') { score += 50; showNotify('⭐ +50 Points!'); }
-          else if (t === 'extraLife') { bird.hasShield = true; showNotify('❤️ +1 Shield!'); }
+          else if (t === 'extraLife') { 
+            if (!bird.extraLives) bird.extraLives = 0;
+            if (bird.extraLives < 2) {
+              bird.extraLives += 2;
+              if (bird.extraLives > 2) bird.extraLives = 2;
+            }
+            showNotify('❤️ +2 Lives!'); 
+          }
           else if (t === 'coinRain') { 
-            for (let i = 0; i < 10; i++) {
-              setTimeout(() => coinItems.push({ x: Math.random() * 400, y: -30, collected: false }), i * 200);
+            // Spawn 25 coins in a circle around the bird
+            for (let i = 0; i < 25; i++) {
+              const angle = (i / 25) * Math.PI * 2;
+              const radius = 100 + Math.random() * 100;
+              const cx = bird.x + Math.cos(angle) * radius;
+              const cy = bird.y + Math.sin(angle) * radius;
+              coinItems.push({ x: Math.max(20, Math.min(380, cx)), y: Math.max(50, Math.min(500, cy)), collected: false });
             }
             showNotify('💰 Coin Rain!'); 
           }
-        } else if (storeItem.type === 'duration') {
+          else if (t === 'teleport') {
+            bird.x += 600;
+            if (bird.x > 350) bird.x = 350;
+            spawnParticles(bird.x - 50, bird.y, '#00BCD4', 20);
+            showNotify('📍 Teleport!'); 
+          }
+        } else else if (storeItem.type === 'duration') {
           activateDurationPowerup(t, storeItem.duration);
         }
       }
@@ -2305,6 +2365,7 @@
       else if (type === 'ghostMode') { bird.ghostMode = true; showNotify('👻 Ghost Mode!'); }
       else if (type === 'speedBoost') { gameSpeed = 4; showNotify('🚀 Speed Boost!'); }
       else if (type === 'fireTrail') { bird.fireTrail = true; showNotify('🔥 Fire Trail!'); }
+      else if (type === 'coinDrone') { bird.coinDrone = true; showNotify('🤖 Coin Drone!'); }
     }
     
     function updateDurationPowerups() {
@@ -2317,6 +2378,7 @@
             if (type === 'ghostMode') { bird.ghostMode = false; }
             if (type === 'speedBoost') { gameSpeed = 2; }
             if (type === 'fireTrail') { bird.fireTrail = false; }
+            if (type === 'coinDrone') { bird.coinDrone = false; }
             delete activeDurationPowerups[type];
           }
         }
@@ -2478,7 +2540,7 @@
       activeDurationPowerups = {};
       reviveCount = 0;
       localStorage.setItem('flappyReviveCount', 0);
-      bird = { x: 80, y: 300, width: 40, height: 35, gravity: 0.4, lift: -9, velocity: 0, rotation: 0, hasDoubleJump: false, hasShield: false, ghostMode: false, fireTrail: false };
+      bird = { x: 80, y: 300, width: 40, height: 35, gravity: 0.4, lift: -9, velocity: 0, rotation: 0, hasDoubleJump: false, hasShield: false, extraLives: 0, ghostMode: false, fireTrail: false, coinDrone: false };
       pipes = [];
       coinItems = [];
       powerups = [];
@@ -2520,7 +2582,7 @@
         // Reset bird position and continue game
         bird.y = 300;
         bird.velocity = 0;
-        bird.hasShield = true;
+        bird.extraLives = 2;
         
         // Clear dangerous objects
         pipes = [];
@@ -2585,12 +2647,13 @@
       { id: 'coinMagnet', name: 'Coin Magnet', icon: '🧲', desc: 'Attract coins', cost: 25, type: 'duration', duration: 10 },
       { id: 'autoJump', name: 'Auto-Jump', icon: '⚡', desc: 'Auto jump 5s', cost: 25, type: 'duration', duration: 5 },
       { id: 'miniBird', name: 'Mini Bird', icon: '🐦', desc: '50% smaller 8s', cost: 25, type: 'duration', duration: 8 },
-      { id: 'pipeFreeze', name: 'Pipe Freeze', icon: '❄️', desc: 'Freeze pipes 3s', cost: 25, type: 'duration', duration: 3 },
       { id: 'ghostMode', name: 'Ghost Mode', icon: '👻', desc: 'Pass through', cost: 30, type: 'duration', duration: 5 },
       { id: 'speedBoost', name: 'Speed Boost', icon: '🚀', desc: 'Faster points', cost: 30, type: 'duration', duration: 10 },
-      { id: 'extraLife', name: 'Extra Life', icon: '❤️', desc: '+1 Shield', cost: 30, type: 'instant' },
+      { id: 'extraLife', name: 'Extra Life', icon: '❤️', desc: '+2 Lives', cost: 30, type: 'instant' },
       { id: 'coinRain', name: 'Coin Rain', icon: '💰', desc: 'Spawn coins', cost: 40, type: 'instant' },
-      { id: 'fireTrail', name: 'Fire Trail', icon: '🔥', desc: 'Destroy pipes', cost: 50, type: 'duration', duration: 8 }
+      { id: 'fireTrail', name: 'Fire Trail', icon: '🔥', desc: 'Destroy pipes', cost: 50, type: 'duration', duration: 8 },
+      { id: 'teleport', name: 'Teleport', icon: '📍', desc: 'Jump 600px', cost: 40, type: 'instant' },
+      { id: 'coinDrone', name: 'Coin Drone', icon: '🤖', desc: 'Auto collect 10s', cost: 30, type: 'duration', duration: 10 }
     ];
     
     // Upgrades
