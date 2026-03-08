@@ -2343,9 +2343,15 @@
             showNotify('💰 Coin Rain!'); 
           }
           else if (t === 'teleport') {
-            bird.x += 600;
-            if (bird.x > 350) bird.x = 350;
-            spawnParticles(bird.x - 50, bird.y, '#00BCD4', 20);
+            // Move world backward instead of bird forward
+            pipes.forEach(p => { p.x -= 600; });
+            coinItems.forEach(c => { c.x -= 600; });
+            powerups.forEach(p => { p.x -= 600; });
+            projectiles.forEach(p => { p.x -= 600; });
+            playerProjectiles.forEach(p => { p.x -= 600; });
+            // Add particles at bird position for effect
+            spawnParticles(bird.x, bird.y, '#00BCD4', 20);
+            spawnParticles(bird.x + 50, bird.y, '#00BCD4', 15);
             showNotify('📍 Teleport!'); 
           }
         } else if (storeItem.type === 'duration') {
