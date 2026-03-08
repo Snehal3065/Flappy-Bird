@@ -2349,10 +2349,20 @@
             powerups.forEach(p => { p.x -= 600; });
             projectiles.forEach(p => { p.x -= 600; });
             playerProjectiles.forEach(p => { p.x -= 600; });
+            // Award points as if bird flew 600px (about 3 pipes)
+            let teleportScore = 0;
+            pipes.forEach(p => {
+              if (!p.scored && p.x + pipeWidth < bird.x) {
+                p.scored = true;
+                teleportScore++;
+              }
+            });
+            score += teleportScore;
+            if (teleportScore > 0) playScore();
             // Add particles at bird position for effect
             spawnParticles(bird.x, bird.y, '#00BCD4', 20);
             spawnParticles(bird.x + 50, bird.y, '#00BCD4', 15);
-            showNotify('📍 Teleport!'); 
+            showNotify('📍 Teleport! +' + teleportScore + ' pts'); 
           }
         } else if (storeItem.type === 'duration') {
           activateDurationPowerup(t, storeItem.duration);
